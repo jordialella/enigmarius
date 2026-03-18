@@ -8,7 +8,7 @@ def install_playwright():
     except Exception as e:
         st.error(f"Error instal·lant el navegador: {e}")
 
-st.set_page_config(page_title="Agent Món Enigmàrius", page_icon="🧩")
+st.set_page_config(page_title="Agent Enigmàrius", page_icon="🧩")
 st.title("🧩 El meu Agent d'Enigmàrius")
 
 URL_ENIGMARIUS = "https://www.3cat.cat/catradio/mon-enigmarius"
@@ -19,45 +19,40 @@ if st.button("Buscar l'Enigmàrius d'avui 🚀"):
     with st.spinner("L'agent està entrant a 3Cat..."):
         try:
             with sync_playwright() as p:
-                # Iniciem el navegador
                 browser = p.chromium.launch(headless=True)
-                page = browser.new_page()
+                # Simulem un navegador real per evitar bloquejos
+                context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36")
+                page = context.new_page()
                 
-                # Anem a la web i esperem que carregui
-                page.goto(URL_ENIGMARIUS, wait_until="networkidle")
+                # Anem a la web i esperem només que estigui carregada bàsicament
+                page.goto(URL_ENIGMARIUS, wait_until="domcontentloaded")
                 
-                # 1. Intentem tancar el banner de cookies si apareix
-                try:
-                    if page.locator("button:has-text('Acceptar')").is_visible():
-                        page.click("button:has-text('Acceptar')")
-                except:
-                    pass
+                # Esperem 5 segons per seguretat perquè es carreguin les imatges
+                page.wait_for_timeout(5000)
 
-                # 2. Busquem la imatge principal del repte
-                # A 3Cat les imatges solen estar dins de classes 'media-img' o 'img-responsive'
-                imatge_selector = "div.media-content img, article img, figure img"
+                # Intentem capturar TOTES les imatges de la web i busquem la que sembli el repte
+                totes_les_imatges = page.locator("img").all()
                 
-                # Esperem una mica que les imatges es carreguin realment
-                page.wait_for_timeout(2000) 
+                img_final = None
+                for img in totes_les_imatges:
+                    src = img.get_attribute("src")
+                    if src and ("jpg" in src or "png" in src) and "logo" not in src.lower():
+                        # Si trobem una imatge que no sigui un logo i tingui bona pinta, l'agafem
+                        img_final = src
+                        break
                 
-                img_element = page.locator(imatge_selector).first
-                img_url = img_element.get_attribute("src")
-                
-                # 3. Fem una captura de pantalla real de la web per si falla el link
-                foto_web = page.screenshot(full_page=False)
+                # També fem una captura de pantalla per si de cas no trobem el fitxer
+                foto_web = page.screenshot()
 
                 browser.close()
 
-                # Resultats
-                if img_url:
-                    # Corregim la URL si és relativa
-                    if img_url.startswith("/"):
-                        img_url = "https://www.3cat.cat" + img_url
-                    
-                    st.success("✅ He trobat aquesta imatge a la portada:")
-                    st.image(img_url, caption="Imatge del repte detectada")
+                if img_final:
+                    if img_final.startswith("/"):
+                        img_final = "https://www.3cat.cat" + img_final
+                    st.success("✅ Imatge trobada!")
+                    st.image(img_final)
                 else:
-                    st.warning("No he pogut extreure la URL de la imatge, però aquí tens una captura de la web:")
+                    st.warning("No he trobat la imatge directa, però aquí tens el que veu l'agent:")
                     st.image(foto_web)
 
         except Exception as e:
