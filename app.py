@@ -8,52 +8,57 @@ def install_playwright():
     except Exception as e:
         st.error(f"Error instal·lant el navegador: {e}")
 
-st.set_page_config(page_title="Agent Enigmàrius", page_icon="🧩")
+st.set_page_config(page_title="Agent Món Enigmàrius", page_icon="🧩")
 st.title("🧩 El meu Agent d'Enigmàrius")
 
-URL_ENIGMARIUS = "https://www.3cat.cat/catradio/mon-enigmarius"
+# URL directa
+URL_ENIGMARIUS = "https://www.3cat.cat/catradio/mon-enigmarius/"
 
 if st.button("Buscar l'Enigmàrius d'avui 🚀"):
     install_playwright()
     
-    with st.spinner("L'agent està entrant a 3Cat..."):
+    with st.spinner("L'agent està buscant la secció 'MÓN ENIGMÀRIUS'..."):
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
-                # Simulem un navegador real per evitar bloquejos
-                context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36")
+                # Posem una resolució de pantalla gran per veure-ho tot bé
+                context = browser.new_context(viewport={'width': 1280, 'height': 800})
                 page = context.new_page()
                 
-                # Anem a la web i esperem només que estigui carregada bàsicament
-                page.goto(URL_ENIGMARIUS, wait_until="domcontentloaded")
+                # Anem a la web
+                page.goto(URL_ENIGMARIUS, wait_until="networkidle", timeout=60000)
                 
-                # Esperem 5 segons per seguretat perquè es carreguin les imatges
-                page.wait_for_timeout(5000)
+                # Esperem que aparegui el títol "Món Enigmàrius" per confirmar que som a la pàgina bona
+                page.wait_for_selector("text=Món Enigmàrius", timeout=15000)
 
-                # Intentem capturar TOTES les imatges de la web i busquem la que sembli el repte
-                totes_les_imatges = page.locator("img").all()
+                # Intentem buscar la imatge del post més recent (el de dalt de tot)
+                # A 3Cat solen estar en un article o un contenidor de mitjans
+                imatge_final = None
                 
-                img_final = None
-                for img in totes_les_imatges:
-                    src = img.get_attribute("src")
-                    if src and ("jpg" in src or "png" in src) and "logo" not in src.lower():
-                        # Si trobem una imatge que no sigui un logo i tingui bona pinta, l'agafem
-                        img_final = src
-                        break
-                
-                # També fem una captura de pantalla per si de cas no trobem el fitxer
-                foto_web = page.screenshot()
+                # Busquem la primera imatge que estigui dins del bloc de contingut principal
+                # El selector 'main img' sol ser el més fiable per saltar-se logos de capçalera
+                selector_contingut = "main img"
+                if page.locator(selector_contingut).count() > 0:
+                    # Agafem la primera que trobem dins del contingut principal
+                    img_element = page.locator(selector_contingut).first
+                    img_url = img_element.get_attribute("src")
+                    if img_url:
+                        if img_url.startswith("/"):
+                            img_url = "https://www.3cat.cat" + img_url
+                        imatge_final = img_url
+
+                # Fem una captura del que està veient l'agent en aquest moment
+                foto_web = page.screenshot(full_page=False)
 
                 browser.close()
 
-                if img_final:
-                    if img_final.startswith("/"):
-                        img_final = "https://www.3cat.cat" + img_final
-                    st.success("✅ Imatge trobada!")
-                    st.image(img_final)
-                else:
-                    st.warning("No he trobat la imatge directa, però aquí tens el que veu l'agent:")
-                    st.image(foto_web)
+                if imatge_final:
+                    st.success("✅ He trobat la secció i la imatge!")
+                    st.image(imatge_final, caption="Imatge extreta de Món Enigmàrius")
+                
+                st.write("---")
+                st.write("📸 Això és el que l'agent veu actualment (Captura real):")
+                st.image(foto_web)
 
         except Exception as e:
-            st.error(f"S'ha produït un error: {e}")
+            st.error(f"L'agent s'ha perdut: {e}")
