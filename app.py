@@ -16,57 +16,58 @@ URL_ENIGMARIUS = "https://www.3cat.cat/catradio/mon-enigmarius/"
 if st.button("Buscar l'Enigmàrius d'avui 🚀"):
     install_playwright()
     
-    with st.spinner("L'agent està gestionant el mur de cookies i buscant el repte..."):
+    with st.spinner("L'agent està netejant la pantalla i buscant el repte..."):
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
-                context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                context = browser.new_context(viewport={'width': 1280, 'height': 800})
                 page = context.new_page()
                 
+                # Anem a la web
                 page.goto(URL_ENIGMARIUS, wait_until="domcontentloaded", timeout=60000)
                 
-                # 1. ACCIÓ CLAU: Fer clic al botó d'acceptar cookies
-                # Busquem el botó que diu "AGREE AND CLOSE" o "Acceptar"
+                # 1. ELIMINEM EL MUR DE COOKIES (Tècnica radical)
+                # Provem de fer clic al botó que has vist a la teva captura
                 try:
-                    # Esperem que el botó sigui visible uns segons
-                    page.wait_for_selector("button:has-text('AGREE AND CLOSE')", timeout=10000)
-                    page.click("button:has-text('AGREE AND CLOSE')")
-                    # Esperem un segon que marxi la finestra
-                    page.wait_for_timeout(2000)
+                    # Esperem que qualsevol botó amb aquests textos aparegui
+                    page.wait_for_selector("button:has-text('AGREE'), button:has-text('Acceptar')", timeout=8000)
+                    page.click("button:has-text('AGREE')")
+                    page.wait_for_timeout(2000) # Esperem que marxi la capa blanca
                 except:
-                    # Si no troba el botó amb aquest text, provem en català
-                    try:
-                        page.click("button:has-text('Acceptar')")
-                    except:
-                        pass # Si no surt el banner, continuem
+                    # Si falla el clic, provem de forçar la desaparició per codi
+                    page.evaluate("document.querySelector('.ot-sdk-container')?.remove()")
+                    page.evaluate("document.querySelector('#onetrust-consent-sdk')?.remove()")
 
-                # 2. Ara que el mur ha marxat, busquem la imatge
-                # Busquem imatges dins de la secció principal de la web
-                page.wait_for_selector("main img", timeout=10000)
-                imatges = page.locator("main img").all()
+                # 2. BUSQUEM LA IMATGE SENSE ESPERAR SELECTORS COMPLICATS
+                # Simplement mirem què hi ha a la pantalla després de 5 segons
+                page.wait_for_timeout(5000)
                 
-                img_final = None
+                # Busquem la imatge més gran que no sigui un logo
+                imatges = page.locator("img").all()
+                img_url = None
+                max_size = 0
+                
                 for img in imatges:
                     src = img.get_attribute("src")
-                    # Busquem una imatge que sembli el repte (evitant logos)
-                    if src and ("jpg" in src or "png" in src) and "logo" not in src.lower():
-                        img_final = src
+                    box = img.bounding_box()
+                    if src and box and box['width'] > 200 and "logo" not in src.lower():
+                        img_url = src
                         break
-                
-                # Fem la captura de pantalla JA SENSE EL MUR
-                foto_web = page.screenshot(full_page=False)
 
+                # 3. CAPTURA DE PANTALLA (Per confirmar que veiem el que toca)
+                foto_web = page.screenshot()
                 browser.close()
 
-                if img_final:
-                    if img_final.startswith("/"):
-                        img_final = "https://www.3cat.cat" + img_final
-                    st.success("✅ Imatge trobada sense el mur de cookies!")
-                    st.image(img_final)
+                # MOSTRAR RESULTATS
+                if img_url:
+                    if img_url.startswith("/"):
+                        img_url = "https://www.3cat.cat" + img_url
+                    st.success("✅ Imatge localitzada!")
+                    st.image(img_url)
                 
                 st.write("---")
-                st.write("📸 **Captura actual de la web (neta):**")
+                st.write("📸 **Això és el que l'agent veu ara mateix:**")
                 st.image(foto_web)
 
         except Exception as e:
-            st.error(f"L'agent ha tingut un problema: {e}")
+            st.error(f"L'agent s'ha encallat: {e}")
