@@ -4,71 +4,82 @@ import time
 from playwright.sync_api import sync_playwright
 
 def install_playwright():
-    st.write("🔧 Verificant el navegador invisible al servidor...")
-    subprocess.run(["playwright", "install", "chromium"], check=True)
+    st.write("🔧 Preparant motors a nivell de servidor (això pot trigar 1-2 min)...")
+    try:
+        # Forçem la instal·lació de Chromium
+        subprocess.run(["playwright", "install", "chromium"], check=True)
+        st.success("✅ Navegador invisible a punt!")
+    except Exception as e:
+        st.error(f"❌ Error greu instal·lant navegador: {e}")
 
-st.set_page_config(page_title="Agent Enigmàrius - Classificació", page_icon="🏆")
-st.title("🏆 Super Agent de Classificació Enigmàrius")
+st.set_page_config(page_title="Super Agent Enigmàrius", page_icon="🧩")
+st.title("🧩 El Super Agent d'Enigmàrius")
 
-nom_a_buscar = st.text_input("Vols buscar algun nom concret a la llista?", "")
+# Buscador de text opcional
+nom_a_buscar = st.text_input("Vols buscar un nom concret a la classificació?", "")
 
 if st.button("Forçar entrada a la Classificació 🚀"):
-    estat = st.empty()
+    # Missatges d'estat en temps real per saber que no està mort
+    estat_app = st.empty()
     
     try:
-        estat.info("🚀 Arrencant motors del super agent...")
+        estat_app.info("1️⃣ Verificant el motor de navegació remota...")
         install_playwright()
         
         with sync_playwright() as p:
+            # Llançem el navegador
             browser = p.chromium.launch(headless=True)
-            # Finestra extremadament alta per forçar que la classificació carregui
+            # Finestra extremadament gran perquè la web no amagui res
             context = browser.new_context(viewport={'width': 1280, 'height': 5000})
             page = context.new_page()
             
-            estat.info("🌐 Connectant amb 3Cat (Món Enigmàrius)...")
-            # Donem molt de temps per a la connexió inicial
+            # 2️⃣ Connexió a la web
+            estat_app.info("2️⃣ Connectant amb 3Cat (Món Enigmàrius)...")
+            # Donem MOLT de temps de Timeout (2 minuts) per si la web va lenta
             page.goto("https://www.3cat.cat/catradio/mon-enigmarius/", wait_until="domcontentloaded", timeout=120000)
             
-            # --- NETEJA RADICAL ---
-            estat.info("🧹 Netejant cookies i obstacles...")
-            # En lloc de clicar botons, esborrem els elements de la memòria per codi
+            # 3️⃣ Neteja radical d'obstacles per codi
+            estat_app.info("3️⃣ Netejant cookies i obstacles per codi directament...")
+            # Eliminem els murs de cookies directament de la memòria de la web
             page.evaluate("document.querySelector('#onetrust-consent-sdk')?.remove()")
             page.evaluate("document.querySelector('.ot-sdk-container')?.remove()")
             
-            # --- NAVEGACIÓ FORÇADA ---
-            estat.info("🔍 Buscant Classificació. Tècnica Bulldozer activada...")
-            # Baixem molt cap avall on se suposa que hi ha el botó
+            # 4️⃣ Scroll i Clic forçat
+            estat_app.info("4️⃣ Buscant botó de Classificació. Tècnica 'Trituradora'...")
+            # Baixem molt cap avall de la web per forçar que el botó s'arrossegui a la vista
             page.evaluate("window.scrollTo(0, 2500)")
-            time.sleep(3) # Esperem que el botó s'arrossegui a la vista
+            time.sleep(4) # Temps perquè la web reaccioni a l'scroll
             
-            # Intentem clicar, però amb un temps d'espera curt. Si falla, continuem
+            # Cliquem el botó amb un selector súper genèric (qualsevol cosa que porti "lassificaci")
             try:
-                # Busquem selectors més genèrics per al botó
-                page.click("a:has-text('lassificaci'), button:has-text('lassificaci')", timeout=10000)
-                estat.info("🖱️ Clic fet a 'Classificació'! Esperant dades...")
-                # Una espera MÉS LLARGA perquè carregui la llista
-                time.sleep(10) 
+                page.click("text=/lassificaci/i", timeout=15000)
+                estat_app.info("🖱️ Clic fet a 'Classificació'! Esperant dades...")
+                # Una espera MÉS LLARGA perquè carregui la llista sencer
+                time.sleep(12) 
             except:
-                st.warning("L'agent no ha pogut confirmar el clic al botó, provaré de fer una captura del que hi hagi a sota.")
+                st.warning("L'agent no ha rebut confirmació del clic, però provaré de fer una captura del que hi hagi.")
 
-            # --- BUSCAR NOM SI CAL ---
+            # 5️⃣ Si busquem algú, forçem el scroll fins a la línia
             if nom_a_buscar:
-                estat.info(f"🕵️ Buscant '{nom_a_buscar}' a la classificació...")
+                estat_app.info(f"🕵️ Buscant a '{nom_a_buscar}' a la classificació...")
                 # L'agent fa un CTRL+F per trobar el nom i moure la pantalla
                 try:
-                    page.locator(f"text='{nom_a_buscar}'").first.scroll_into_view_if_needed()
+                    target = page.locator(f"text='{nom_a_buscar}'").first
+                    target.scroll_into_view_if_needed()
                     time.sleep(1)
                 except:
-                    pass
+                    st.error(f"No he trobat a '{nom_a_buscar}' a la vista actual.")
 
-            # --- CAPTURA FINAL ---
+            # 6️⃣ Captura final
             foto = page.screenshot(full_page=False)
             browser.close()
             
-            estat.success("✅ Tasca completada!")
+            # Mostrar resultat
+            estat_app.success("✅ Tasca completada!")
             st.write("---")
-            st.write("📸 Això és el que l'agent veu ara mateix:")
+            st.write("📸 Captura real de la zona on l'agent s'ha aturat:")
             st.image(foto)
             
     except Exception as e:
+        # Mostrem l'error exacte si s'atura
         st.error(f"❌ L'agent ha tingut un problema greu: {e}")
