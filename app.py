@@ -35,7 +35,7 @@ if st.button("Buscar a la Classificació 🚀"):
             estat.info("🖱️ Obrint la classificació i fent scroll...")
             # Cliquem qualsevol cosa que digui Classificació sense esperar selectors ràpids
             try:
-                page.get_by_text("Classificació").first.click(timeout=5000)
+                page.get_by_text("Posició").first.click(timeout=5000)
                 time.sleep(5)
             except:
                 pass
